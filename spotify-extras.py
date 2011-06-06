@@ -19,7 +19,6 @@ import base64
 import logging
 import os
 import re
-import thread
 import urllib2
 
 from dbus.mainloop.glib import DBusGMainLoop
@@ -44,8 +43,6 @@ class Application(object):
         if not os.path.exists(self.cache_dir):
             os.makedirs(self.cache_dir)
         self.update_default_icon()
-
-        gobject.threads_init()
 
         DBusGMainLoop(set_as_default=True)
         self.loop = gobject.MainLoop()
@@ -86,18 +83,17 @@ class Application(object):
 
     def update_track_icon(self, track):
         track_icon_path = self.get_track_icon_path(track)
-        if not os.path.exists(track_icon_path):
-            track_url = self.get_track_url(track)
-            response = urllib2.urlopen(track_url)
-            img_match = self.img_re.search(response.read())
-            if img_match:
-                img_url = img_match.group(1)
-                response = urllib2.urlopen(img_url)
-                img_f = open(track_icon_path, 'wb')
-                img_f.write(response.read())
-                img_f.close()
+        track_url = self.get_track_url(track)
+        response = urllib2.urlopen(track_url)
+        img_match = self.img_re.search(response.read())
+        if img_match:
+            img_url = img_match.group(1)
+            response = urllib2.urlopen(img_url)
+            img_f = open(track_icon_path, 'wb')
+            img_f.write(response.read())
+            img_f.close()
 
-                self.notify(*self.get_playback_info())
+            self.notify(*self.get_playback_info())
 
     def _notify(self, summary, icon_path=None, body=""):
         interface = self.get_interface('org.freedesktop.Notifications',
@@ -136,7 +132,7 @@ class Application(object):
         self._notify(summary, icon_path, body)
 
         if icon_path != track_icon_path:
-            thread.start_new_thread(self.update_track_icon, (track,))
+            self.update_track_icon(track)
 
     def get_playback_status(self):
         interface = self.get_interface('org.mpris.MediaPlayer2.spotify',
