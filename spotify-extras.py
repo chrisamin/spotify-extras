@@ -16,6 +16,9 @@ improvements:
     * Fetches default icon from spotify website.
     * Notifies on stop as well as start.
     * Won't fetch the image for every track -- only once per album.
+
+The files associated with this project are made available under version 2
+of the GPL: http://www.gnu.org/licenses/gpl-2.0.html
 """
 
 import base64
