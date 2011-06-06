@@ -8,9 +8,12 @@ Notification and media key support for qt Spotify.
 Inspired by http://code.google.com/p/spotify-notify/, it has the following
 improvements:
 
+    * Persists over multiple qt Spotify instances, so you can run 
+      spotify-extras at log in and then open/close Spotify as many times as
+      you like.
+    * Deletes obsolete notifications so cycling through tracks doesn't create
+      a huge backlog.
     * Fetches default icon from spotify website.
-    * Deletes obsolete notifications so cycling through tracks doesn't mess
-      things up.
     * Notifies on stop as well as start.
     * Won't fetch the image for every track -- only once per album.
 """
@@ -22,11 +25,12 @@ import re
 import urllib2
 
 from dbus.mainloop.glib import DBusGMainLoop
+from dbus.exceptions import DBusException
 import dbus
 import gobject
 
 
-DEBUG_LEVEL = logging.INFO
+DEBUG_LEVEL = logging.DEBUG
 
 
 class Application(object):
@@ -150,16 +154,35 @@ class Application(object):
             self.notify(*info)
             self.last_track = info
 
-    def start_notifications(self):
-        self.update_track_display()
-        interface = self.get_interface('org.mpris.MediaPlayer2.spotify',
-            '/org/mpris/MediaPlayer2', 'org.freedesktop.DBus.Properties')
-        interface.connect_to_signal('PropertiesChanged',
-            self.update_track_display)
+    def restart_notifications(self, sender, *args, **kwargs):
+        if sender == "org.mpris.MediaPlayer2.spotify":
+            logging.info("Connecting to new Spotify instance.")
+            self.start_notifications()
+
+    def start_notifications(self, persist=False):
+        try:
+            self.update_track_display()
+            interface = self.get_interface('org.mpris.MediaPlayer2.spotify',
+                '/org/mpris/MediaPlayer2', 'org.freedesktop.DBus.Properties')
+            interface.connect_to_signal('PropertiesChanged',
+                self.update_track_display)
+        except DBusException:
+            pass
+
+        if persist:
+            global_interface = self.get_interface('org.freedesktop.DBus',
+                '/org/freedesktop/DBus', 'org.freedesktop.DBus')
+            global_interface.connect_to_signal('NameOwnerChanged',
+                self.restart_notifications)
 
     def player_command(self, command):
-        interface = self.get_interface('org.mpris.MediaPlayer2.spotify',
-            '/org/mpris/MediaPlayer2', 'org.mpris.MediaPlayer2.Player')
+        try:
+            interface = self.get_interface('org.mpris.MediaPlayer2.spotify',
+                '/org/mpris/MediaPlayer2', 'org.mpris.MediaPlayer2.Player')
+        except DBusException:
+            logging.debug("Not carrying out command '%s' because can't find "
+                "Spotify instance." % command)
+            return
         method = getattr(interface, command)
         method()
 
@@ -181,7 +204,7 @@ class Application(object):
             self.media_player_key_pressed)
 
     def run(self):
-        self.start_notifications()
+        self.start_notifications(persist=True)
         self.listen_for_keys()
         self.loop.run()
 
