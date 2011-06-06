@@ -1,11 +1,25 @@
 #!/usr/bin/env python
 
+"""
+spotify-extras
+
+Notification and media key support for qt Spotify.
+
+Inspired by http://code.google.com/p/spotify-notify/, it has the following
+improvements:
+
+    * Fetches default icon from spotify website.
+    * Deletes obsolete notifications so cycling through tracks doesn't mess
+      things up.
+    * Notifies on stop as well as start.
+    * Won't fetch the image for every track -- only once per album.
+"""
+
 import base64
 import logging
 import os
 import re
 import thread
-import time
 import urllib2
 
 from dbus.mainloop.glib import DBusGMainLoop
@@ -53,13 +67,13 @@ class Application(object):
     def update_default_icon(self):
         default_icon_path = self.get_icon_path('default')
         if not os.path.exists(default_icon_path):
-            response = urllib2.urlopen(self.default_icon_url) 
+            response = urllib2.urlopen(self.default_icon_url)
             f = open(default_icon_path, 'wb')
             f.write(response.read())
             f.close()
 
     def get_icon_path(self, icon):
-        return os.path.join(self.cache_dir, icon) 
+        return os.path.join(self.cache_dir, icon)
 
     def get_track_icon_path(self, track):
         raw_icon_name = '%s-%s' % (track['xesam:artist'], track['xesam:album'])
@@ -100,6 +114,7 @@ class Application(object):
 
     def notify(self, status, track):
         if status == "Stopped":
+            logging.info('Playback stopped')
             self._notify("[stopped]")
             return
 
@@ -107,14 +122,14 @@ class Application(object):
         body = '%s\n%s (%s)' % (track['xesam:title'], track['xesam:album'],
             track['xesam:contentCreated'][:4])
 
-        logging.info('Current track: %(xesam:title)s by %(xesam:artist)s' % 
+        logging.info('Current track: %(xesam:title)s by %(xesam:artist)s' %
             track)
 
         logging.debug('Raising notification %s.' % track['mpris:trackid'])
 
         track_icon_path = self.get_track_icon_path(track)
         if os.path.exists(track_icon_path):
-            icon_path = track_icon_path 
+            icon_path = track_icon_path
         else:
             icon_path = None
 
@@ -127,7 +142,6 @@ class Application(object):
         interface = self.get_interface('org.mpris.MediaPlayer2.spotify',
             '/org/mpris/MediaPlayer2', 'org.freedesktop.DBus.Properties')
         return interface.Get("org.mpris.MediaPlayer2.Player", "PlaybackStatus")
-
 
     def get_playback_info(self):
         status = self.get_playback_status()
@@ -162,7 +176,6 @@ class Application(object):
 
         if command:
             self.player_command(command)
-            
 
     def listen_for_keys(self):
         interface = self.get_interface('org.gnome.SettingsDaemon',
