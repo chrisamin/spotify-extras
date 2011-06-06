@@ -1,4 +1,6 @@
+==============
 spotify-extras
+==============
 
 Notification and media key support for qt Spotify.
 
