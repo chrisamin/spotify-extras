@@ -121,7 +121,9 @@ class Application(object):
             self._notify("[stopped]")
             return
 
-        summary = track['xesam:artist']
+        artist = track['xesam:artist'][0]
+        summary = artist
+
         body = '%s\n%s (%s)' % (track['xesam:title'], track['xesam:album'],
             track['xesam:contentCreated'][:4])
 
