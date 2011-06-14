@@ -121,16 +121,16 @@ class Application(object):
             self._notify("[stopped]")
             return
 
-        artist = track['xesam:artist'][0]
+        artist = track['xesam:artist']
+        if isinstance(artist, dbus.Array):
+            artist = artist[0]
         summary = artist
 
         body = '%s\n%s (%s)' % (track['xesam:title'], track['xesam:album'],
             track['xesam:contentCreated'][:4])
 
-        logging.info('Current track: %(xesam:title)s by %(xesam:artist)s' %
+        logging.info('Current track: %(xesam:title)r by %(xesam:artist)r' %
             track)
-
-        logging.debug('Raising notification %s.' % track['mpris:trackid'])
 
         track_icon_path = self.get_track_icon_path(track)
         if os.path.exists(track_icon_path):
